@@ -27,12 +27,13 @@ class Config():
     #rule_str = '10100101'       # rule 165
     #rule_str = '01001101'       # rule 77
     #rule_str = '01101001'       # rule 77
+    rule_num = None
     rule_str = None
     scale = 300
-    evolution_max = 300
+    evolution_max = 500
     #Color_one = wx.Colour(0, 0, 0)   # black
     #Color_zero = wx.Colour(255, 255, 255)   # white
-    grid_size = 2
+    grid_size = 1
     interval = 2
 
 class DataStore():
@@ -40,13 +41,14 @@ class DataStore():
         self.reset()
 
     def reset(self):
+        self.finished = False
         self.evolution_history = list()
         data_list = list()
         for i in range(Config.scale):
             #data_list.append(i % 2)
-            #data_list.append(0)
-            data_list.append(random.randint(0, 1))
-        #data_list[-1] = 1
+            data_list.append(1)
+            #data_list.append(random.randint(0, 1))
+        data_list[-1] = 0
         self.evolution_history.append(data_list)
 
 # global variable
@@ -99,10 +101,10 @@ class WorkerThread(Thread):
 
     def run(self):
         global dataStore
-        for i in range(255):
-            print("working with i = %d" %i)
+        for Config.rule_num in range(1, 255):
+            print("working with rule_num = %d" %Config.rule_num)
             dataStore.reset()
-            Config.rule_str = convert_dec_to_binstr(i, 8)
+            Config.rule_str = convert_dec_to_binstr(Config.rule_num, 8)
             evolution_count = 0
             while(evolution_count < Config.evolution_max):
                 current_data_list = dataStore.evolution_history[-1]     # the last element of evolution_history
@@ -111,8 +113,9 @@ class WorkerThread(Thread):
                     new_data_list.append(get_evolution_value(i, current_data_list))
                 dataStore.evolution_history.append(new_data_list)
                 evolution_count += 1
-            wx.PostEvent(self._notify_window, ResultEvent(i))
-            time.sleep(Config.interval)
+            wx.PostEvent(self._notify_window, ResultEvent(Config.rule_num))
+            while not dataStore.finished:
+                time.sleep(0.01)
 
             if self._want_abort:
                 wx.PostEvent(self._notify_window, ResultEvent("Aborted"))
@@ -161,7 +164,7 @@ class MyFrame(wx.Frame):
 
         # set size and position
         global dataStore
-        self.SetSize(Config.scale * Config.grid_size + 16 , Config.evolution_max * Config.grid_size + 100)
+        self.SetSize(Config.scale * Config.grid_size + 17 , Config.evolution_max * Config.grid_size + 88)
         self.Centre()
 
     #----------------------------------------------------------------------       
@@ -183,7 +186,8 @@ class MyFrame(wx.Frame):
                     dc.DrawRectangle(x, y, Config.grid_size, Config.grid_size)  # only draw data = 1
                 x += Config.grid_size
             y += Config.grid_size
-        self.saveDCToFile(Config.rule_str)    
+        self.saveDCToFile(str(Config.rule_num) + "-" + Config.rule_str)
+        dataStore.finished = True
 
      #----------------------------------------------------------------------   
     def onExit(self, event):
